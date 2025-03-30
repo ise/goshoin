@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Bookstore } from "@/types/supabase";
 import { Pagination } from "./Pagination";
+import { BookstoreCard } from "./BookstoreCard";
 
 interface BookstoreListProps {
   searchQuery?: string;
@@ -16,6 +17,7 @@ export function BookstoreList({ searchQuery = "" }: BookstoreListProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [showClosed, setShowClosed] = useState(false);
 
   useEffect(() => {
     async function fetchBookstores() {
@@ -25,6 +27,14 @@ export function BookstoreList({ searchQuery = "" }: BookstoreListProps) {
           .select("*")
           .order("number", { ascending: true });
 
+        // 閉店情報のフィルタリング
+        if (showClosed) {
+          query = query.not("close_info", "is", null);
+        } else {
+          query = query.is("close_info", null);
+        }
+
+        // 検索クエリのフィルタリング
         if (searchQuery) {
           query = query.or(
             `name.ilike.%${searchQuery}%,prefecture.ilike.%${searchQuery}%,address.ilike.%${searchQuery}%`
@@ -47,7 +57,7 @@ export function BookstoreList({ searchQuery = "" }: BookstoreListProps) {
     }
 
     fetchBookstores();
-  }, [searchQuery]);
+  }, [searchQuery, showClosed]);
 
   if (loading) return <div className="text-center">読み込み中...</div>;
   if (error) return <div className="text-center text-red-600">{error}</div>;
@@ -63,56 +73,33 @@ export function BookstoreList({ searchQuery = "" }: BookstoreListProps) {
   };
 
   return (
-    <div>
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                登録番号
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                店名
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                時間帯
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                住所
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                特装版取扱
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {currentBookstores.map((bookstore) => (
-              <tr key={bookstore.id}>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {bookstore.number}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {bookstore.registered_name}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {bookstore.opening_hour || "-"}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {bookstore.prefecture} {bookstore.address}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {bookstore.special_edition ? "あり" : "-"}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+        <label className="flex items-center space-x-2 text-sm text-gray-600">
+          <input
+            type="checkbox"
+            checked={showClosed}
+            onChange={(e) => setShowClosed(e.target.checked)}
+            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+          />
+          <span>閉店済みの店舗を見る</span>
+        </label>
       </div>
-      <Pagination
-        currentPage={currentPage}
-        totalPages={totalPages}
-        onPageChange={handlePageChange}
-      />
+      <div className="bg-white rounded-lg shadow-sm">
+        <div className="p-4">
+          {currentBookstores.map((bookstore) => (
+            <BookstoreCard key={bookstore.id} bookstore={bookstore} />
+          ))}
+        </div>
+
+        <div className="px-4 py-3 border-t border-gray-200">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+          />
+        </div>
+      </div>
     </div>
   );
 }

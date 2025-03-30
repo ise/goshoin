@@ -166,7 +166,9 @@ export async function POST() {
         establishment_year,
         address,
       ] = row;
+      const closeInfoMatch = registered_name.match(/【(.+?)】/);
       const name = registered_name.replace(/【(.+?)】/, "");
+      const close_info = closeInfoMatch ? closeInfoMatch[1] : null;
       const prefecture_number = PREFECTURE_CODES[prefecture] || 0;
 
       return {
@@ -180,6 +182,7 @@ export async function POST() {
         establishment_year,
         address: normalizeAddress(address),
         special_edition: false,
+        close_info,
       };
     });
 
@@ -235,10 +238,10 @@ export async function POST() {
       status: errorCount === 0 ? "success" : "error",
       message:
         errorCount === 0
-          ? `Successfully updated ${updatedCount} bookstores`
-          : `Updated ${updatedCount} bookstores with ${errorCount} errors`,
+          ? `${updatedCount} 件の店舗を更新しました`
+          : `${updatedCount} 件の店舗を更新しました。${errorCount} 件の店舗の更新に失敗しました`,
       error_details:
-        errorCount > 0 ? `${errorCount} bookstores failed to update` : null,
+        errorCount > 0 ? `${errorCount} 件の店舗の更新に失敗しました` : null,
     });
 
     return NextResponse.json({

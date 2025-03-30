@@ -1,12 +1,12 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { BookstoreList } from '@/components/BookstoreList'
-import { SearchBox } from '@/components/SearchBox'
-import { UpdateLogs } from '@/components/UpdateLogs'
+import { useState } from "react";
+import { BookstoreList } from "@/components/BookstoreList";
+import { SearchBox } from "@/components/SearchBox";
+import { UpdateLogs } from "@/components/UpdateLogs";
 
 export default function Home() {
-  const [searchQuery, setSearchQuery] = useState('')
+  const [searchQuery, setSearchQuery] = useState("");
 
   return (
     <main className="container mx-auto px-4 py-8">
@@ -37,5 +37,5 @@ export default function Home() {
         </p>
       </footer>
     </main>
-  )
-} 
+  );
+}
