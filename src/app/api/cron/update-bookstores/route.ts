@@ -3,7 +3,6 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { UpdateLog } from "@/types/supabase";
-import { headers } from "next/headers";
 import { convertToFullWidthNumber } from "@/lib/utils";
 
 const SPREADSHEET_ID = "1t52cnKT6vDkchIEJ_FmIzAobCIMbgUXBGF_nuQEVaOI";
