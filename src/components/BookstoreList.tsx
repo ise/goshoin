@@ -18,6 +18,7 @@ export function BookstoreList({ searchQuery = "" }: BookstoreListProps) {
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [showClosed, setShowClosed] = useState(false);
+  const [showSpecialEdition, setShowSpecialEdition] = useState(false);
 
   useEffect(() => {
     async function fetchBookstores() {
@@ -32,6 +33,11 @@ export function BookstoreList({ searchQuery = "" }: BookstoreListProps) {
           query = query.not("close_info", "is", null);
         } else {
           query = query.is("close_info", null);
+        }
+
+        // 特装版取扱のフィルタリング
+        if (showSpecialEdition) {
+          query = query.eq("special_edition", true);
         }
 
         // 検索クエリのフィルタリング
@@ -57,7 +63,7 @@ export function BookstoreList({ searchQuery = "" }: BookstoreListProps) {
     }
 
     fetchBookstores();
-  }, [searchQuery, showClosed]);
+  }, [searchQuery, showClosed, showSpecialEdition]);
 
   if (loading) return <div className="text-center">読み込み中...</div>;
   if (error) return <div className="text-center text-red-600">{error}</div>;
@@ -74,7 +80,16 @@ export function BookstoreList({ searchQuery = "" }: BookstoreListProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+      <div className="flex items-center gap-4">
+        <label className="flex items-center space-x-2 text-sm text-gray-600">
+          <input
+            type="checkbox"
+            checked={showSpecialEdition}
+            onChange={(e) => setShowSpecialEdition(e.target.checked)}
+            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+          />
+          <span>特装版取扱店舗</span>
+        </label>
         <label className="flex items-center space-x-2 text-sm text-gray-600">
           <input
             type="checkbox"
@@ -82,7 +97,7 @@ export function BookstoreList({ searchQuery = "" }: BookstoreListProps) {
             onChange={(e) => setShowClosed(e.target.checked)}
             className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
           />
-          <span>閉店済みの店舗を見る</span>
+          <span>閉店済み店舗</span>
         </label>
       </div>
       <div className="bg-white rounded-lg shadow-sm">
