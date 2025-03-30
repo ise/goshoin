@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
+import { updateBookstoresService } from "@/app/services/updateBookstores";
 
 export async function POST() {
   // シークレットキーの検証
@@ -11,11 +12,12 @@ export async function POST() {
   }
 
   // バッチ処理の実行
-  const response = await fetch(
-    `${process.env.NEXT_PUBLIC_APP_URL}/api/cron/update-bookstores`,
-    { method: "POST" }
-  );
-  const data = await response.json();
+  const [success, updatedCount, errorCount] = await updateBookstoresService();
+  const data = {
+    success,
+    updatedCount,
+    errorCount,
+  };
 
   return NextResponse.json(data);
 }

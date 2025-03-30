@@ -1,7 +1,6 @@
 "use strict";
 
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
-import { NextResponse } from "next/server";
 import { UpdateLog } from "@/types/supabase";
 import { convertToFullWidthNumber } from "@/lib/utils";
 
@@ -123,7 +122,7 @@ function compareSpecialEditionHeader(header: string[]) {
   return [compareList.every(([a, b]) => a === b), compareList];
 }
 
-export async function POST() {
+export async function updateBookstoresService() {
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -229,11 +228,7 @@ export async function POST() {
         errorCount > 0 ? `${errorCount} 件の店舗の更新に失敗しました` : null,
     });
 
-    return NextResponse.json({
-      success: true,
-      updatedCount,
-      errorCount,
-    });
+    return [true, updatedCount, errorCount];
   } catch (error) {
     console.error("Error in update-bookstores:", error);
 
@@ -245,13 +240,6 @@ export async function POST() {
         error instanceof Error ? error.message : "Unknown error occurred",
     });
 
-    return NextResponse.json(
-      {
-        success: false,
-        error:
-          error instanceof Error ? error.message : "Unknown error occurred",
-      },
-      { status: 500 }
-    );
+    return [false, 0, 1];
   }
 }
