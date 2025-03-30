@@ -2,22 +2,29 @@
 
 import { useState } from "react";
 import { BookstoreList } from "@/components/BookstoreList";
-import { SearchBox } from "@/components/SearchBox";
 import { UpdateLogs } from "@/components/UpdateLogs";
 
 export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
 
   return (
-    <main className="container mx-auto px-4 py-8">
-      <header className="mb-8">
-        <h1 className="text-3xl font-bold text-center">
-          &quot;非公式&quot;御書印参加店舗検索奴
-        </h1>
-      </header>
-
-      <SearchBox onSearch={setSearchQuery} />
-
+    <div className="space-y-8">
+      <div className="text-center space-y-4">
+        <h1 className="text-3xl font-bold text-primary">御書印参加店舗検索</h1>
+        <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+          御書印プロジェクトに参加している書店を検索できます。
+          店舗名、都道府県、住所で検索してください。
+        </p>
+      </div>
+      <div className="max-w-2xl mx-auto">
+        <input
+          type="text"
+          placeholder="店舗名、都道府県、住所で検索..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full px-4 py-2 border border-primary/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+        />
+      </div>
       <BookstoreList searchQuery={searchQuery} />
 
       <UpdateLogs />
@@ -36,6 +43,6 @@ export default function Home() {
           や各書店のHPなどでご確認ください。
         </p>
       </footer>
-    </main>
+    </div>
   );
 }

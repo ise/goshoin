@@ -3,6 +3,10 @@
 @tailwind utilities;
 
 :root {
+  --primary: #3d3d3d; /* ダークグレー */
+  --secondary: #fffaec; /* 薄いクリーム */
+  --accent: #578e7e; /* ティール */
+  --accent2: #f5ecd5; /* 薄いベージュ */
   --foreground-rgb: 0, 0, 0;
   --background-rgb: 255, 255, 255;
 }
@@ -10,4 +14,38 @@
 body {
   color: rgb(var(--foreground-rgb));
   background: rgb(var(--background-rgb));
+}
+
+/* カスタムスタイル */
+.text-primary {
+  color: var(--primary);
+}
+
+.text-accent {
+  color: var(--accent);
+}
+
+.text-accent2 {
+  color: var(--accent2);
+}
+
+.bg-secondary {
+  background-color: var(--secondary);
+}
+
+.border-primary {
+  border-color: var(--primary);
+}
+
+.hover\:bg-primary:hover {
+  background-color: var(--primary);
+}
+
+.focus\:ring-primary:focus {
+  --tw-ring-color: var(--primary);
+}
+
+/* ヘッダー用のスタイル */
+.bg-primary {
+  background-color: var(--primary);
 }

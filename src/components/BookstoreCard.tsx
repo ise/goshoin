@@ -13,28 +13,28 @@ export function BookstoreCard({ bookstore }: BookstoreCardProps) {
   )}`;
 
   return (
-    <div className="bg-white rounded-lg shadow-sm p-4 mb-4">
+    <div className="bg-secondary border border-primary/20 rounded-lg p-4 mb-4">
       <div className="flex flex-col space-y-2">
         <div className="flex justify-between items-start">
-          <div className="text-lg font-semibold">
+          <div className="text-lg font-semibold text-primary">
             {bookstore.registered_name}
           </div>
-          <span className="text-sm text-gray-500">
+          <span className="text-sm text-accent">
             登録番号: {bookstore.number}
           </span>
         </div>
         <div className="space-y-2 text-sm text-gray-600">
           <p>
-            <span className="font-medium">時間帯:</span>{" "}
+            <span className="font-medium text-primary">時間帯:</span>{" "}
             {bookstore.opening_hour || "-"}
           </p>
           <p>
-            <span className="font-medium">住所:</span>{" "}
+            <span className="font-medium text-primary">住所:</span>{" "}
             <a
               href={googleMapsUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:text-blue-600 hover:underline"
+              className="text-accent hover:text-primary hover:underline"
             >
               {bookstore.prefecture}
               {bookstore.city}
@@ -42,12 +42,12 @@ export function BookstoreCard({ bookstore }: BookstoreCardProps) {
             </a>
           </p>
           <p>
-            <span className="font-medium">特装版取扱:</span>{" "}
+            <span className="font-medium text-primary">特装版取扱:</span>{" "}
             {bookstore.special_edition ? "あり" : "-"}
           </p>
           {bookstore.close_info && (
             <p className="text-red-600">
-              <span className="font-medium">閉店情報:</span>{" "}
+              <span className="font-medium text-primary">閉店情報:</span>{" "}
               {bookstore.close_info}
             </p>
           )}
