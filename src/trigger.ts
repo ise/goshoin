@@ -1,0 +1,1 @@
+import './jobs/update-bookstores' 

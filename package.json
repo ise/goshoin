@@ -1,0 +1,43 @@
+{
+  "name": "goshoin",
+  "version": "0.1.0",
+  "private": true,
+  "trigger.dev": {
+    "endpointId": "proj_qmryethkfylqgamfxbdm"
+  },
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@google-cloud/local-auth": "^3.0.1",
+    "@radix-ui/react-icons": "^1.3.2",
+    "@radix-ui/react-slot": "^1.1.2",
+    "@supabase/supabase-js": "^2.49.3",
+    "@trigger.dev/sdk": "^3.3.17",
+    "@types/dotenv": "^6.1.1",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "dotenv": "^16.4.7",
+    "googleapis": "^148.0.0",
+    "lucide-react": "^0.485.0",
+    "next": "15.2.4",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tailwind-merge": "^3.0.2"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/postcss": "^4",
+    "@trigger.dev/build": "^3.3.17",
+    "@types/node": "^20.17.28",
+    "@types/react": "^19.0.12",
+    "@types/react-dom": "^19.0.4",
+    "eslint": "^9",
+    "eslint-config-next": "15.2.4",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}
