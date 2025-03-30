@@ -1,11 +1,16 @@
-import { createClient } from "@supabase/supabase-js";
+"use strict";
+
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { UpdateLog } from "@/types/supabase";
 import { headers } from "next/headers";
+import { convertToFullWidthNumber } from "@/lib/utils";
 
 const SPREADSHEET_ID = "1t52cnKT6vDkchIEJ_FmIzAobCIMbgUXBGF_nuQEVaOI";
 const PARTICIPANT_SHEET_ID = "1460657161";
+const PARTICIPANT_SHEET_RANGE = "A:G";
 const SPECIAL_EDITION_SHEET_ID = "1503676788";
+const SPECIAL_EDITION_SHEET_RANGE = "C:E";
 
 // 都道府県コードのマッピング
 const PREFECTURE_CODES: { [key: string]: number } = {
@@ -58,8 +63,16 @@ const PREFECTURE_CODES: { [key: string]: number } = {
   沖縄県: 47,
 };
 
+function normalizeAddress(address: string) {
+  return convertToFullWidthNumber(address.replace(/−/, "－"));
+}
+
+function trimPrefectureSuffix(prefecture: string) {
+  return prefecture.replace(/[都道府県]$/, "");
+}
+
 async function fetchSheetData(sheetId: string, range: string) {
-  const url = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:csv&sheet=${sheetId}&range=${range}`;
+  const url = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:csv&gid=${sheetId}&range=${range}`;
   const response = await fetch(url);
   if (!response.ok) {
     throw new Error(`Failed to fetch sheet data: ${response.statusText}`);
@@ -71,7 +84,7 @@ async function fetchSheetData(sheetId: string, range: string) {
 }
 
 async function createLog(
-  supabase: any,
+  supabase: SupabaseClient,
   log: Omit<UpdateLog, "id" | "created_at">
 ) {
   const { error } = await supabase.from("update_logs").insert(log);
@@ -79,6 +92,36 @@ async function createLog(
   if (error) {
     console.error("Error creating log:", error);
   }
+}
+
+function compareParticipantHeader(header: string[]) {
+  const convertedHeader = header.map((h, i) => {
+    if (i === 0) h = h.replace(/^御書印参加店リスト（.+） /, "");
+    return h.trim();
+  });
+  const compareList = [
+    [convertedHeader[0], "登録番号"],
+    [convertedHeader[1], "都道府県など"],
+    [convertedHeader[2], "市町村名"],
+    [convertedHeader[3], "登録店名"],
+    [convertedHeader[4], "時間帯"],
+    [convertedHeader[5], "創業年"],
+    [convertedHeader[6], "住所"],
+  ];
+  return [compareList.every(([a, b]) => a === b), compareList];
+}
+
+function compareSpecialEditionHeader(header: string[]) {
+  const convertedHeader = header.map((h, i) => {
+    if (i === 0) h = h.replace(/^特装版取扱店リスト（.+） /, "");
+    return h.trim();
+  });
+  const compareList = [
+    [convertedHeader[0], "書店名"],
+    [convertedHeader[1], "都道府県"],
+    [convertedHeader[2], "住所"],
+  ];
+  return [compareList.every(([a, b]) => a === b), compareList];
 }
 
 export async function POST() {
@@ -103,8 +146,17 @@ export async function POST() {
 
   try {
     // 参加店リストの取得
-    const participantRows = await fetchSheetData(PARTICIPANT_SHEET_ID, "A:H");
-    const bookstores = participantRows.slice(2).map((row, index) => {
+    const participantRows = await fetchSheetData(
+      PARTICIPANT_SHEET_ID,
+      PARTICIPANT_SHEET_RANGE
+    );
+    // ヘッダをチェック
+    const [isValidParticipant, compareListParticipant] =
+      compareParticipantHeader(participantRows[0]);
+    if (!isValidParticipant) {
+      throw new Error("Invalid participant header: " + compareListParticipant);
+    }
+    const bookstores = participantRows.slice(1).map((row) => {
       const [
         number,
         prefecture,
@@ -126,7 +178,7 @@ export async function POST() {
         name,
         opening_hour,
         establishment_year,
-        address,
+        address: normalizeAddress(address),
         special_edition: false,
       };
     });
@@ -134,15 +186,21 @@ export async function POST() {
     // 特装版取扱店リストの取得
     const specialEditionRows = await fetchSheetData(
       SPECIAL_EDITION_SHEET_ID,
-      "A:C"
+      SPECIAL_EDITION_SHEET_RANGE
     );
+    // ヘッダをチェック
+    const [isValidSpecialEdition, compareListSpecialEdition] =
+      compareSpecialEditionHeader(specialEditionRows[0]);
+    if (!isValidSpecialEdition) {
+      throw new Error(
+        "Invalid special edition header: " + compareListSpecialEdition
+      );
+    }
     const specialEditionBookstores = specialEditionRows.slice(1).map((row) => ({
       name: row[0],
       prefecture: row[1],
       address: row[2],
     }));
-    console.log(specialEditionBookstores);
-
     // データベースの更新
     let updatedCount = 0;
     let errorCount = 0;
@@ -150,8 +208,8 @@ export async function POST() {
       const isSpecialEdition = specialEditionBookstores.some(
         (special) =>
           special.name === bookstore.name &&
-          special.prefecture === bookstore.prefecture &&
-          special.address === bookstore.address
+          trimPrefectureSuffix(special.prefecture) ===
+            trimPrefectureSuffix(bookstore.prefecture)
       );
 
       const { error } = await supabase.from("bookstores").upsert(

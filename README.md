@@ -1,36 +1,44 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 開発メモ
 
-## Getting Started
+## 開発開始方法
 
-First, run the development server:
+#### DB
+
+supabase がインストールされていなければ入れる https://supabase.com/docs/guides/local-development/cli/getting-started
+
+```bash
+# 開発用DBを起動
+supabase start
+```
+
+[ダッシュボード（http://localhost:54323/project/default）](http://localhost:54323/project/default) にアクセスする
+
+#### アプリケーション
+
+`.env.local.example` を元に `.env.local` を作成
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+[http://localhost:3000](http://localhost:3000)にアクセスする
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+#### バッチ処理
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+# 開発用のtriggerを起動
+npm run trigger:dev
+```
 
-## Learn More
+下記 URL からローカル環境のタスクを実行できる
 
-To learn more about Next.js, take a look at the following resources:
+https://cloud.trigger.dev/orgs/ise-21ee/projects/v3/goshoin-iFiU/test
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 知見
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+公開されているスプレッドシートは ↓ のようにアクセスするだけで CSV データがダウンロードできるらしい（cursor まじプログラミングオタク）
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- 参加順店舗リスト
+  - https://docs.google.com/spreadsheets/d/1t52cnKT6vDkchIEJ_FmIzAobCIMbgUXBGF_nuQEVaOI/gviz/tq?tqx=out:csv&gid=1460657161&range=A:G
+- 特装版取扱店舗リスト
+  - https://docs.google.com/spreadsheets/d/1t52cnKT6vDkchIEJ_FmIzAobCIMbgUXBGF_nuQEVaOI/gviz/tq?tqx=out:csv&gid=1503676788&range=C:E

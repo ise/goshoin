@@ -9,7 +9,8 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "trigger:dev": "npx trigger.dev@latest dev"
   },
   "dependencies": {
     "@google-cloud/local-auth": "^3.0.1",

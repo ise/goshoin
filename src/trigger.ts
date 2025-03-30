@@ -1,1 +1,2 @@
-import './jobs/update-bookstores' 
+// import './jobs/update-bookstores'
+import "./trigger/update-bookstores";

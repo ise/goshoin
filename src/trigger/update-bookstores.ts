@@ -1,4 +1,4 @@
-import { logger, schedules } from "@trigger.dev/sdk/v3";
+import { schedules } from "@trigger.dev/sdk/v3";
 
 // 1日1回実行するジョブを定義
 export const updateBookstores = schedules.task({
@@ -17,7 +17,6 @@ export const updateBookstores = schedules.task({
 
     // 結果のログ出力
     console.log("Update result:", data);
-    logger.log("Update result:", data);
 
     return data;
   },
