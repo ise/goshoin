@@ -125,20 +125,6 @@ function compareSpecialEditionHeader(header: string[]) {
 }
 
 export async function POST() {
-  // ローカル環境の場合は検証をスキップ
-  if (process.env.NODE_ENV !== "production") {
-    console.log("Skipping trigger.dev verification in development mode");
-  } else {
-    // trigger.devからのリクエストかどうかを検証
-    const headersList = await headers();
-    const triggerId = headersList.get("x-trigger-id");
-    const triggerSignature = headersList.get("x-trigger-signature");
-
-    if (!triggerId || !triggerSignature) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-  }
-
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
