@@ -13,35 +13,62 @@ export function Pagination({
 }: PaginationProps) {
   const pages = Array.from({ length: totalPages }, (_, i) => i + 1);
 
-  return (
-    <div className="flex justify-center items-center space-x-2">
-      <button
-        onClick={() => onPageChange(currentPage - 1)}
-        disabled={currentPage === 1}
-        className="px-3 py-1 rounded-md bg-white text-gray-700 border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors duration-150"
-      >
-        前へ
-      </button>
-      {pages.map((page) => (
+  // スマホ用のページネーション（前後のページのみ表示）
+  const MobilePagination = () => {
+    return (
+      <div className="flex items-center justify-between w-full">
         <button
-          key={page}
-          onClick={() => onPageChange(page)}
-          className={`px-3 py-1 rounded-md transition-colors duration-150 ${
-            currentPage === page
-              ? "bg-blue-500 text-white hover:bg-blue-600"
-              : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
-          }`}
+          onClick={() => onPageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+          className="px-3 py-1 text-sm text-accent disabled:text-gray-400"
         >
-          {page}
+          ← 前へ
         </button>
-      ))}
-      <button
-        onClick={() => onPageChange(currentPage + 1)}
-        disabled={currentPage === totalPages}
-        className="px-3 py-1 rounded-md bg-white text-gray-700 border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors duration-150"
-      >
-        次へ
-      </button>
+        <span className="text-sm text-primary">
+          {currentPage} / {totalPages}
+        </span>
+        <button
+          onClick={() => onPageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          className="px-3 py-1 text-sm text-accent disabled:text-gray-400"
+        >
+          次へ →
+        </button>
+      </div>
+    );
+  };
+
+  // PC用のページネーション（すべてのページを表示）
+  const DesktopPagination = () => {
+    return (
+      <div className="flex items-center space-x-2">
+        {pages.map((page) => (
+          <button
+            key={page}
+            onClick={() => onPageChange(page)}
+            className={`px-3 py-1 rounded ${
+              currentPage === page
+                ? "bg-primary text-white"
+                : "text-primary hover:bg-accent2"
+            }`}
+          >
+            {page}
+          </button>
+        ))}
+      </div>
+    );
+  };
+
+  return (
+    <div className="flex justify-center">
+      {/* スマホ用（md未満） */}
+      <div className="md:hidden w-full">
+        <MobilePagination />
+      </div>
+      {/* PC用（md以上） */}
+      <div className="hidden md:block">
+        <DesktopPagination />
+      </div>
     </div>
   );
 }
