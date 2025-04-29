@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
-import { Bookstore } from "@/types/supabase";
+import { supabase } from "../lib/supabase";
+import { Bookstore } from "../types/supabase";
 import { Pagination } from "./Pagination";
 import { BookstoreCard } from "./BookstoreCard";
 
