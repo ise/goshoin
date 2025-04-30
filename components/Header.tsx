@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { useSession, signIn, signOut } from "next-auth/react";
@@ -50,12 +51,14 @@ export function Header() {
             {status === "authenticated" && (
               <div className="flex items-center space-x-4">
                 {session?.user?.image && (
-                  <img
+                  <Image
                     src={session.user.image}
                     alt={
                       session.user.name || session.user.email || "User Avatar"
                     }
-                    className="w-8 h-8 rounded-full"
+                    width={32}
+                    height={32}
+                    className="rounded-full"
                   />
                 )}
                 <button
@@ -130,10 +133,12 @@ export function Header() {
                 <div className="px-3 py-2 space-y-2 border-t border-white/10 mt-2 pt-2">
                   <div className="flex items-center space-x-3">
                     {session?.user?.image && (
-                      <img
+                      <Image
                         src={session.user.image}
                         alt="User Avatar"
-                        className="w-8 h-8 rounded-full"
+                        width={32}
+                        height={32}
+                        className="rounded-full"
                       />
                     )}
                     <span className="block text-base font-medium text-white/80">
