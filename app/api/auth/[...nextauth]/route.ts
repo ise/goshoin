@@ -5,7 +5,7 @@ import crypto from "crypto";
 import { AuthError } from "@supabase/supabase-js";
 
 // NextAuthの設定オブジェクト
-export const authOptions: AuthOptions = {
+const authOptions: AuthOptions = {
   // 認証プロバイダーのリスト
   providers: [
     GoogleProvider({
