@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { useSession, signIn, signOut } from "next-auth/react";
 
 export function Header() {
   const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { data: session, status } = useSession();
 
   return (
     <header className="bg-primary text-white shadow-sm">
@@ -21,7 +23,7 @@ export function Header() {
             </Link>
           </div>
           {/* PC用ナビゲーション */}
-          <nav className="hidden md:flex items-center">
+          <nav className="hidden md:flex items-center space-x-4">
             <Link
               href="/about"
               className={`text-sm font-medium ${
@@ -32,6 +34,39 @@ export function Header() {
             >
               このサイトについて
             </Link>
+
+            {/* === 認証状態による表示切り替え (PC) === */}
+            {status === "loading" && (
+              <span className="text-sm text-white/80">Loading...</span>
+            )}
+            {status === "unauthenticated" && (
+              <button
+                onClick={() => signIn("google")}
+                className="bg-accent hover:bg-accent/90 text-white text-sm font-medium py-2 px-4 rounded-md transition-colors"
+              >
+                Googleでログイン
+              </button>
+            )}
+            {status === "authenticated" && (
+              <div className="flex items-center space-x-4">
+                {session?.user?.image && (
+                  <img
+                    src={session.user.image}
+                    alt={
+                      session.user.name || session.user.email || "User Avatar"
+                    }
+                    className="w-8 h-8 rounded-full"
+                  />
+                )}
+                <button
+                  onClick={() => signOut()}
+                  className="bg-gray-600 hover:bg-gray-700 text-white text-sm font-medium py-2 px-4 rounded-md transition-colors"
+                >
+                  ログアウト
+                </button>
+              </div>
+            )}
+            {/* === ここまで === */}
           </nav>
           {/* スマホ用ハンバーガーメニュー */}
           <div className="md:hidden flex items-center">
@@ -73,6 +108,50 @@ export function Header() {
               >
                 このサイトについて
               </Link>
+
+              {/* === 認証状態による表示切り替え (スマホ) === */}
+              {status === "loading" && (
+                <span className="block px-3 py-2 rounded-md text-base font-medium text-white/80">
+                  Loading...
+                </span>
+              )}
+              {status === "unauthenticated" && (
+                <button
+                  onClick={() => {
+                    signIn("google");
+                    setIsMenuOpen(false);
+                  }}
+                  className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-white/80 hover:text-white hover:bg-primary/10"
+                >
+                  Googleでログイン
+                </button>
+              )}
+              {status === "authenticated" && (
+                <div className="px-3 py-2 space-y-2 border-t border-white/10 mt-2 pt-2">
+                  <div className="flex items-center space-x-3">
+                    {session?.user?.image && (
+                      <img
+                        src={session.user.image}
+                        alt="User Avatar"
+                        className="w-8 h-8 rounded-full"
+                      />
+                    )}
+                    <span className="block text-base font-medium text-white/80">
+                      {session?.user?.name || session?.user?.email}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      signOut();
+                      setIsMenuOpen(false);
+                    }}
+                    className="block w-full text-left rounded-md text-base font-medium text-gray-400 hover:text-white hover:bg-primary/10"
+                  >
+                    ログアウト
+                  </button>
+                </div>
+              )}
+              {/* === ここまで === */}
             </div>
           </div>
         )}
