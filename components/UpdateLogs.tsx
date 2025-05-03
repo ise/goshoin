@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
-import { UpdateLog } from "@/types/supabase";
+import { supabase } from "../lib/supabase";
+import { UpdateLog } from "../types/supabase";
 
 export function UpdateLogs() {
   const [logs, setLogs] = useState<UpdateLog[]>([]);

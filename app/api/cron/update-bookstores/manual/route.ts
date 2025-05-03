@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
-import { updateBookstoresService } from "@/app/services/updateBookstores";
+import { updateBookstoresService } from "../../../../services/updateBookstores";
 
 export async function POST() {
   // シークレットキーの検証

@@ -1,8 +1,8 @@
 "use strict";
 
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
-import { UpdateLog } from "@/types/supabase";
-import { convertToFullWidthNumber } from "@/lib/utils";
+import { UpdateLog } from "../../types/supabase";
+import { convertToFullWidthNumber } from "../../lib/utils";
 
 const SPREADSHEET_ID = "1t52cnKT6vDkchIEJ_FmIzAobCIMbgUXBGF_nuQEVaOI";
 const PARTICIPANT_SHEET_ID = "1460657161";

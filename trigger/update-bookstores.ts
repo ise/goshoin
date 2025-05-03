@@ -1,4 +1,4 @@
-import { updateBookstoresService } from "@/app/services/updateBookstores";
+import { updateBookstoresService } from "../app/services/updateBookstores";
 import { schedules } from "@trigger.dev/sdk/v3";
 
 // 1日1回実行するジョブを定義

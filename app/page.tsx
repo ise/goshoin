@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { BookstoreList } from "@/components/BookstoreList";
-import { UpdateLogs } from "@/components/UpdateLogs";
+import { BookstoreList } from "../components/BookstoreList";
+import { UpdateLogs } from "../components/UpdateLogs";
 
 export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");

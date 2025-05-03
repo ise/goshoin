@@ -1,6 +1,6 @@
 "use client";
 
-import { Bookstore } from "@/types/supabase";
+import { Bookstore } from "../types/supabase";
 
 interface BookstoreCardProps {
   bookstore: Bookstore;
