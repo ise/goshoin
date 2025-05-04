@@ -4,12 +4,27 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { useSession, signIn, signOut } from "next-auth/react";
+import { signIn, signOut, useSession } from "next-auth/react";
 
 export function Header() {
   const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { data: session, status } = useSession();
+  const user = session?.user;
+  const loading = status === "loading";
+
+  const handleLogin = async () => {
+    setIsMenuOpen(false);
+    await signIn("google");
+  };
+
+  const handleLogout = async () => {
+    setIsMenuOpen(false);
+    await signOut();
+  };
+
+  const userName = user?.name || user?.email;
+  const userAvatar = user?.image;
 
   return (
     <header className="bg-primary text-white shadow-sm">
@@ -37,32 +52,35 @@ export function Header() {
             </Link>
 
             {/* === 認証状態による表示切り替え (PC) === */}
-            {status === "loading" && (
+            {loading && (
               <span className="text-sm text-white/80">Loading...</span>
             )}
-            {status === "unauthenticated" && (
+            {!loading && !user && (
               <button
-                onClick={() => signIn("google")}
+                onClick={handleLogin}
                 className="bg-accent hover:bg-accent/90 text-white text-sm font-medium py-2 px-4 rounded-md transition-colors"
               >
                 Googleでログイン
               </button>
             )}
-            {status === "authenticated" && (
+            {!loading && user && (
               <div className="flex items-center space-x-4">
-                {session?.user?.image && (
-                  <Image
-                    src={session.user.image}
-                    alt={
-                      session.user.name || session.user.email || "User Avatar"
-                    }
-                    width={32}
-                    height={32}
-                    className="rounded-full"
-                  />
-                )}
+                <Link
+                  href="/profile"
+                  className="flex items-center space-x-2 hover:opacity-80 transition-opacity"
+                >
+                  {userAvatar && (
+                    <Image
+                      src={userAvatar}
+                      alt={userName || "User Avatar"}
+                      width={32}
+                      height={32}
+                      className="rounded-full"
+                    />
+                  )}
+                </Link>
                 <button
-                  onClick={() => signOut()}
+                  onClick={handleLogout}
                   className="bg-gray-600 hover:bg-gray-700 text-white text-sm font-medium py-2 px-4 rounded-md transition-colors"
                 >
                   ログアウト
@@ -113,44 +131,42 @@ export function Header() {
               </Link>
 
               {/* === 認証状態による表示切り替え (スマホ) === */}
-              {status === "loading" && (
+              {loading && (
                 <span className="block px-3 py-2 rounded-md text-base font-medium text-white/80">
                   Loading...
                 </span>
               )}
-              {status === "unauthenticated" && (
+              {!loading && !user && (
                 <button
-                  onClick={() => {
-                    signIn("google");
-                    setIsMenuOpen(false);
-                  }}
+                  onClick={handleLogin}
                   className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-white/80 hover:text-white hover:bg-primary/10"
                 >
                   Googleでログイン
                 </button>
               )}
-              {status === "authenticated" && (
+              {!loading && user && (
                 <div className="px-3 py-2 space-y-2 border-t border-white/10 mt-2 pt-2">
-                  <div className="flex items-center space-x-3">
-                    {session?.user?.image && (
+                  <Link
+                    href="/profile"
+                    className="flex items-center space-x-3 px-3 py-2 rounded-md text-base font-medium text-white/80 hover:text-white hover:bg-primary/10"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    {userAvatar && (
                       <Image
-                        src={session.user.image}
+                        src={userAvatar}
                         alt="User Avatar"
                         width={32}
                         height={32}
                         className="rounded-full"
                       />
                     )}
-                    <span className="block text-base font-medium text-white/80">
-                      {session?.user?.name || session?.user?.email}
+                    <span className="block text-base font-medium">
+                      {userName} (プロフィール)
                     </span>
-                  </div>
+                  </Link>
                   <button
-                    onClick={() => {
-                      signOut();
-                      setIsMenuOpen(false);
-                    }}
-                    className="block w-full text-left rounded-md text-base font-medium text-gray-400 hover:text-white hover:bg-primary/10"
+                    onClick={handleLogout}
+                    className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-400 hover:text-white hover:bg-primary/10"
                   >
                     ログアウト
                   </button>

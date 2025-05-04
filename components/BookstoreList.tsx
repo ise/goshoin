@@ -1,10 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "../lib/supabase";
+import { createClient } from "@supabase/supabase-js";
+import { Database } from "../types/supabase";
 import { Bookstore } from "../types/supabase";
 import { Pagination } from "./Pagination";
 import { BookstoreCard } from "./BookstoreCard";
+import { useSession } from "next-auth/react";
+
+interface BookstoreWithMarks extends Bookstore {
+  isWant?: boolean;
+  isVisited?: boolean;
+}
 
 interface BookstoreListProps {
   searchQuery?: string;
@@ -13,57 +20,126 @@ interface BookstoreListProps {
 const ITEMS_PER_PAGE = 40;
 
 export function BookstoreList({ searchQuery = "" }: BookstoreListProps) {
-  const [bookstores, setBookstores] = useState<Bookstore[]>([]);
+  const [bookstores, setBookstores] = useState<BookstoreWithMarks[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [showClosed, setShowClosed] = useState(false);
   const [showSpecialEdition, setShowSpecialEdition] = useState(false);
 
+  const { data: session } = useSession();
+  const userId = session?.user?.id;
+  const supabaseAccessToken = session?.supabaseAccessToken;
+
   useEffect(() => {
     async function fetchBookstores() {
+      setLoading(true);
+      setError(null);
       try {
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+        const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+        const supabase = createClient<Database>(
+          supabaseUrl,
+          supabaseAnonKey,
+          supabaseAccessToken
+            ? {
+                global: {
+                  headers: { Authorization: `Bearer ${supabaseAccessToken}` },
+                },
+              }
+            : {}
+        );
+
         let query = supabase
           .from("bookstores")
           .select("*")
           .order("number", { ascending: true });
 
-        // 閉店情報のフィルタリング
         if (showClosed) {
           query = query.not("close_info", "is", null);
         } else {
           query = query.is("close_info", null);
         }
 
-        // 特装版取扱のフィルタリング
         if (showSpecialEdition) {
           query = query.eq("special_edition", true);
         }
 
-        // 検索クエリのフィルタリング
         if (searchQuery) {
           query = query.or(
             `name.ilike.%${searchQuery}%,prefecture.ilike.%${searchQuery}%,address.ilike.%${searchQuery}%`
           );
         }
 
-        const { data, error } = await query;
+        const { data: bookstoreData, error: bookstoreError } = await query;
 
-        if (error) throw error;
+        if (bookstoreError) throw bookstoreError;
 
-        setBookstores(data || []);
-        setCurrentPage(1); // 検索クエリが変更されたら1ページ目に戻る
+        if (!bookstoreData) {
+          setBookstores([]);
+          return;
+        }
+
+        let finalBookstores: BookstoreWithMarks[] = bookstoreData;
+
+        if (userId && bookstoreData.length > 0) {
+          const bookstoreIds = bookstoreData.map((b) => b.id);
+
+          const { data: marksData, error: rpcError } = await supabase.rpc(
+            "get_bookstore_marks",
+            { p_bookstore_ids: bookstoreIds }
+          );
+
+          if (rpcError) {
+            console.error("Error fetching bookstore marks via RPC:", rpcError);
+            setError(`マーク情報の取得に失敗しました: ${rpcError.message}`);
+          }
+
+          const marksMap = new Map<
+            string,
+            { is_want: boolean; is_visited: boolean }
+          >();
+          if (marksData) {
+            for (const mark of marksData) {
+              marksMap.set((mark as any).bookstore_id, {
+                is_want: (mark as any).is_want,
+                is_visited: (mark as any).is_visited,
+              });
+            }
+          }
+
+          finalBookstores = bookstoreData.map((bookstore) => {
+            const marks = marksMap.get(bookstore.id);
+            return {
+              ...bookstore,
+              isWant: marks?.is_want || false,
+              isVisited: marks?.is_visited || false,
+            };
+          });
+        }
+
+        setBookstores(finalBookstores);
+        setCurrentPage(1);
       } catch (err) {
+        console.error("Error fetching bookstores:", err);
         setError(
           err instanceof Error ? err.message : "データの取得に失敗しました"
         );
+        setBookstores([]);
       } finally {
         setLoading(false);
       }
     }
 
     fetchBookstores();
-  }, [searchQuery, showClosed, showSpecialEdition]);
+  }, [
+    searchQuery,
+    showClosed,
+    showSpecialEdition,
+    userId,
+    supabaseAccessToken,
+  ]);
 
   if (loading) return <div className="text-center">読み込み中...</div>;
   if (error) return <div className="text-center text-red-600">{error}</div>;
@@ -103,7 +179,12 @@ export function BookstoreList({ searchQuery = "" }: BookstoreListProps) {
       <div className="bg-white rounded-lg shadow-sm">
         <div className="p-4">
           {currentBookstores.map((bookstore) => (
-            <BookstoreCard key={bookstore.id} bookstore={bookstore} />
+            <BookstoreCard
+              key={bookstore.id}
+              bookstore={bookstore}
+              isWant={bookstore.isWant}
+              isVisited={bookstore.isVisited}
+            />
           ))}
         </div>
 
