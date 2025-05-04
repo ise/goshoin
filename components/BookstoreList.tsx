@@ -17,6 +17,13 @@ interface BookstoreListProps {
   searchQuery?: string;
 }
 
+// RPC関数の戻り値の型を定義
+type BookstoreMark = {
+  bookstore_id: string;
+  is_want: boolean;
+  is_visited: boolean;
+};
+
 const ITEMS_PER_PAGE = 40;
 
 export function BookstoreList({ searchQuery = "" }: BookstoreListProps) {
@@ -101,10 +108,10 @@ export function BookstoreList({ searchQuery = "" }: BookstoreListProps) {
             { is_want: boolean; is_visited: boolean }
           >();
           if (marksData) {
-            for (const mark of marksData) {
-              marksMap.set((mark as any).bookstore_id, {
-                is_want: (mark as any).is_want,
-                is_visited: (mark as any).is_visited,
+            for (const mark of marksData as BookstoreMark[]) {
+              marksMap.set(mark.bookstore_id, {
+                is_want: mark.is_want,
+                is_visited: mark.is_visited,
               });
             }
           }
