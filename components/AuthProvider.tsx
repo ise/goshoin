@@ -1,13 +1,13 @@
-"use client"; // クライアントコンポーネントとしてマーク
+// components/AuthProvider.tsx
+"use client";
 
 import { SessionProvider } from "next-auth/react";
-import React from "react";
+import type { ReactNode } from "react";
 
-// SessionProvider をラップするクライアントコンポーネント
-export default function AuthProvider({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+interface Props {
+  children: ReactNode;
+}
+
+export function AuthProvider({ children }: Props) {
   return <SessionProvider>{children}</SessionProvider>;
 }

@@ -9,6 +9,7 @@ declare module "next-auth" {
     user: {
       id: string; // Supabase の user_id (UUID) を入れる想定
     } & DefaultSession["user"]; // 元々の name, email, image も含める
+    supabaseAccessToken: string;
   }
 
   // User オブジェクトにも id を追加 (必要に応じて)
