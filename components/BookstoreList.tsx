@@ -5,6 +5,8 @@ import { supabase } from "../lib/supabase";
 import { Bookstore } from "../types/supabase";
 import { Pagination } from "./Pagination";
 import { BookstoreCard } from "./BookstoreCard";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 
 interface BookstoreListProps {
   searchQuery?: string;
@@ -13,6 +15,10 @@ interface BookstoreListProps {
 const ITEMS_PER_PAGE = 40;
 
 export function BookstoreList({ searchQuery = "" }: BookstoreListProps) {
+  const { data: session, status } = useSession();
+  const userId = session?.user?.id;
+  const router = useRouter();
+
   const [bookstores, setBookstores] = useState<Bookstore[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -20,40 +26,71 @@ export function BookstoreList({ searchQuery = "" }: BookstoreListProps) {
   const [showClosed, setShowClosed] = useState(false);
   const [showSpecialEdition, setShowSpecialEdition] = useState(false);
 
+  const [wantToGoIds, setWantToGoIds] = useState<Set<string>>(new Set());
+  const [visitedIds, setVisitedIds] = useState<Set<string>>(new Set());
+  const [markingBookstoreId, setMarkingBookstoreId] = useState<string | null>(
+    null
+  );
+
   useEffect(() => {
-    async function fetchBookstores() {
+    async function fetchData() {
+      setLoading(true);
+      setError(null);
       try {
-        let query = supabase
+        let bookstoreQuery = supabase
           .from("bookstores")
-          .select("*")
+          .select("*, id")
           .order("number", { ascending: true });
 
-        // 閉店情報のフィルタリング
-        if (showClosed) {
-          query = query.not("close_info", "is", null);
-        } else {
-          query = query.is("close_info", null);
-        }
+        if (showClosed)
+          bookstoreQuery = bookstoreQuery.not("close_info", "is", null);
+        else bookstoreQuery = bookstoreQuery.is("close_info", null);
 
-        // 特装版取扱のフィルタリング
-        if (showSpecialEdition) {
-          query = query.eq("special_edition", true);
-        }
+        if (showSpecialEdition)
+          bookstoreQuery = bookstoreQuery.eq("special_edition", true);
 
-        // 検索クエリのフィルタリング
         if (searchQuery) {
-          query = query.or(
-            `name.ilike.%${searchQuery}%,prefecture.ilike.%${searchQuery}%,address.ilike.%${searchQuery}%`
+          bookstoreQuery = bookstoreQuery.or(
+            `registered_name.ilike.%${searchQuery}%,prefecture.ilike.%${searchQuery}%,address.ilike.%${searchQuery}%`
           );
         }
 
-        const { data, error } = await query;
+        const { data: bookstoreData, error: bookstoreError } =
+          await bookstoreQuery;
+        if (bookstoreError) throw bookstoreError;
+        setBookstores(bookstoreData || []);
+        setCurrentPage(1);
 
-        if (error) throw error;
+        if (userId) {
+          const [
+            { data: wantData, error: wantError },
+            { data: visitedData, error: visitedError },
+          ] = await Promise.all([
+            supabase
+              .from("want_to_go_bookstores")
+              .select("bookstore_id")
+              .eq("user_id", userId),
+            supabase
+              .from("visited_bookstores")
+              .select("bookstore_id")
+              .eq("user_id", userId),
+          ]);
 
-        setBookstores(data || []);
-        setCurrentPage(1); // 検索クエリが変更されたら1ページ目に戻る
+          if (wantError) throw wantError;
+          if (visitedError) throw visitedError;
+
+          setWantToGoIds(
+            new Set(wantData?.map((item) => item.bookstore_id) || [])
+          );
+          setVisitedIds(
+            new Set(visitedData?.map((item) => item.bookstore_id) || [])
+          );
+        } else {
+          setWantToGoIds(new Set());
+          setVisitedIds(new Set());
+        }
       } catch (err) {
+        console.error("Error fetching data:", err);
         setError(
           err instanceof Error ? err.message : "データの取得に失敗しました"
         );
@@ -62,11 +99,92 @@ export function BookstoreList({ searchQuery = "" }: BookstoreListProps) {
       }
     }
 
-    fetchBookstores();
-  }, [searchQuery, showClosed, showSpecialEdition]);
+    fetchData();
+  }, [searchQuery, showClosed, showSpecialEdition, userId]);
 
+  const handleMarkWantToGo = async (bookstoreId: string) => {
+    if (!userId) {
+      router.push("/api/auth/signin");
+      return;
+    }
+    setMarkingBookstoreId(bookstoreId);
+    try {
+      const response = await fetch("/api/bookstores/mark", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ bookstoreId, markType: "want_to_go" }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to mark as want to go");
+      }
+
+      setWantToGoIds((prev) => new Set(prev).add(bookstoreId));
+      setVisitedIds((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(bookstoreId);
+        return newSet;
+      });
+    } catch (err) {
+      console.error("Error marking want to go:", err);
+      setError(err instanceof Error ? err.message : "マーク処理に失敗しました");
+    } finally {
+      setMarkingBookstoreId(null);
+    }
+  };
+
+  const handleMarkVisited = async (bookstoreId: string) => {
+    if (!userId) {
+      router.push("/api/auth/signin");
+      return;
+    }
+    setMarkingBookstoreId(bookstoreId);
+    try {
+      const response = await fetch("/api/bookstores/mark", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ bookstoreId, markType: "visited" }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to mark as visited");
+      }
+
+      setVisitedIds((prev) => new Set(prev).add(bookstoreId));
+      setWantToGoIds((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(bookstoreId);
+        return newSet;
+      });
+    } catch (err) {
+      console.error("Error marking visited:", err);
+      setError(err instanceof Error ? err.message : "マーク処理に失敗しました");
+    } finally {
+      setMarkingBookstoreId(null);
+    }
+  };
+
+  if (status === "loading")
+    return <div className="text-center">認証情報 読み込み中...</div>;
   if (loading) return <div className="text-center">読み込み中...</div>;
-  if (error) return <div className="text-center text-red-600">{error}</div>;
+  if (error)
+    return (
+      <div className="text-center text-red-600">
+        {error}{" "}
+        <button
+          onClick={() => setError(null)}
+          className="ml-2 text-sm text-blue-600 underline"
+        >
+          閉じる
+        </button>
+      </div>
+    );
 
   const totalPages = Math.ceil(bookstores.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -103,7 +221,16 @@ export function BookstoreList({ searchQuery = "" }: BookstoreListProps) {
       <div className="bg-white rounded-lg shadow-sm">
         <div className="p-4">
           {currentBookstores.map((bookstore) => (
-            <BookstoreCard key={bookstore.id} bookstore={bookstore} />
+            <BookstoreCard
+              key={bookstore.id}
+              bookstore={bookstore}
+              isWantToGo={wantToGoIds.has(bookstore.id)}
+              isVisited={visitedIds.has(bookstore.id)}
+              onMarkWantToGo={handleMarkWantToGo}
+              onMarkVisited={handleMarkVisited}
+              isMarking={markingBookstoreId === bookstore.id}
+              isAuthenticated={!!userId}
+            />
           ))}
         </div>
 

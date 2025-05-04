@@ -1,11 +1,11 @@
-import NextAuth, { AuthOptions } from "next-auth";
+import NextAuth, { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
-import { getSupabaseAdmin } from "@lib/supabaseAdmin";
+import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import crypto from "crypto";
 import { AuthError } from "@supabase/supabase-js";
 
 // NextAuthの設定オブジェクト
-const authOptions: AuthOptions = {
+export const authOptions: NextAuthOptions = {
   // 認証プロバイダーのリスト
   providers: [
     GoogleProvider({
@@ -107,20 +107,23 @@ const authOptions: AuthOptions = {
 
           // supabaseUserId が確定していれば profiles を upsert
           if (supabaseUserId) {
-            const { error: profileError } = await supabase
+            const { error: upsertError } = await getSupabaseAdmin()
               .from("profiles")
               .upsert(
                 {
-                  user_id: supabaseUserId,
+                  id: supabaseUserId, // Supabase の user ID
                   name: name,
                   avatar_url: avatarUrl,
                   updated_at: new Date().toISOString(),
                 },
-                { onConflict: "user_id" }
+                {
+                  onConflict: "id",
+                  ignoreDuplicates: false, // これがないと onConflict が効かない
+                }
               );
 
-            if (profileError) {
-              console.error("Error upserting profile:", profileError.message);
+            if (upsertError) {
+              console.error("Supabase Profile Upsert Error:", upsertError);
             } else {
               console.log(`Profile upserted for user ID: ${supabaseUserId}`);
             }
@@ -148,8 +151,17 @@ const authOptions: AuthOptions = {
     },
 
     async session({ session, token }) {
-      if (token.sub && session.user) {
+      if (token.sub) {
         session.user.id = token.sub;
+      }
+      if (session.user && token.picture && !session.user.image) {
+        session.user.image = token.picture;
+      }
+      if (session.user && token.name && !session.user.name) {
+        session.user.name = token.name;
+      }
+      if (session.user && token.email && !session.user.email) {
+        session.user.email = token.email;
       }
       return session;
     },
