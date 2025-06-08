@@ -1,6 +1,98 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "config:recommended"
-  ]
+    "config:recommended",
+    ":automergeMinor",
+    ":automergePatch",
+    ":automergeDigest"
+  ],
+  "schedule": ["before 6am on monday"],
+  "timezone": "Asia/Tokyo",
+  "labels": ["dependencies"],
+  "assigneesFromCodeOwners": true,
+  "reviewersFromCodeOwners": true,
+  "packageRules": [
+    {
+      "description": "Next.js関連をグループ化",
+      "matchPackageNames": ["next", "eslint-config-next"],
+      "groupName": "Next.js"
+    },
+    {
+      "description": "React関連をグループ化",
+      "matchPackageNames": [
+        "react",
+        "react-dom",
+        "@types/react",
+        "@types/react-dom"
+      ],
+      "groupName": "React"
+    },
+    {
+      "description": "Supabase関連をグループ化",
+      "matchPackageNames": [
+        "@supabase/supabase-js",
+        "@supabase/ssr",
+        "@auth/supabase-adapter"
+      ],
+      "groupName": "Supabase"
+    },
+    {
+      "description": "Tailwind関連をグループ化",
+      "matchPackageNames": [
+        "tailwindcss",
+        "autoprefixer",
+        "postcss",
+        "tailwind-merge",
+        "class-variance-authority",
+        "clsx"
+      ],
+      "groupName": "Tailwind CSS"
+    },
+    {
+      "description": "Trigger.dev関連をグループ化",
+      "matchPackageNames": ["@trigger.dev/sdk", "@trigger.dev/build"],
+      "groupName": "Trigger.dev"
+    },
+    {
+      "description": "TypeScript関連をグループ化",
+      "matchPackageNames": [
+        "typescript",
+        "@types/node",
+        "@types/jsonwebtoken",
+        "@types/dotenv"
+      ],
+      "groupName": "TypeScript"
+    },
+    {
+      "description": "ESLint関連をグループ化",
+      "matchPackageNames": ["eslint", "@eslint/eslintrc"],
+      "groupName": "ESLint"
+    },
+    {
+      "description": "メジャーアップデートは手動確認",
+      "matchUpdateTypes": ["major"],
+      "automerge": false,
+      "labels": ["dependencies", "major-update"],
+      "reviewers": ["@ise"]
+    },
+    {
+      "description": "セキュリティアップデートは即座に自動マージ",
+      "matchDatasources": ["npm"],
+      "matchUpdateTypes": ["patch"],
+      "matchPackageNames": ["*"],
+      "automerge": true,
+      "automergeType": "pr",
+      "platformAutomerge": true
+    }
+  ],
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "automerge": true
+  },
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 6am on the first day of the month"]
+  },
+  "prConcurrentLimit": 3,
+  "prHourlyLimit": 2
 }
