@@ -25,6 +25,7 @@ type BookstoreMark = {
 };
 
 const ITEMS_PER_PAGE = 40;
+const MAX_SEARCH_QUERY_LENGTH = 100;
 
 export function BookstoreList({ searchQuery = "" }: BookstoreListProps) {
   const [bookstores, setBookstores] = useState<BookstoreWithMarks[]>([]);
@@ -38,7 +39,17 @@ export function BookstoreList({ searchQuery = "" }: BookstoreListProps) {
   const userId = session?.user?.id;
   const supabaseAccessToken = session?.supabaseAccessToken;
 
+  // 検索クエリのバリデーション
+  const isQueryTooLong = searchQuery.length > MAX_SEARCH_QUERY_LENGTH;
+
   useEffect(() => {
+    // 検索クエリが長すぎる場合は検索を実行しない
+    if (isQueryTooLong) {
+      setLoading(false);
+      setBookstores([]);
+      return;
+    }
+
     async function fetchBookstores() {
       setLoading(true);
       setError(null);
@@ -150,6 +161,47 @@ export function BookstoreList({ searchQuery = "" }: BookstoreListProps) {
 
   if (loading) return <div className="text-center">読み込み中...</div>;
   if (error) return <div className="text-center text-red-600">{error}</div>;
+
+  // 検索クエリが長すぎる場合のエラー表示
+  if (isQueryTooLong) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+        <div className="text-red-500 text-2xl mb-2">⚠️</div>
+        <h3 className="text-lg font-medium text-red-800 mb-2">
+          検索クエリが長すぎます
+        </h3>
+        <p className="text-red-700 text-sm">
+          検索キーワードは{MAX_SEARCH_QUERY_LENGTH}文字以内で入力してください。
+        </p>
+      </div>
+    );
+  }
+
+  if (bookstores.length === 0) {
+    const safeSearchQuery = searchQuery ? searchQuery.slice(0, 50) : "";
+
+    return (
+      <div className="bg-white rounded-lg shadow-sm p-8 text-center">
+        <div className="text-gray-500 text-lg mb-2">📚</div>
+        <h3 className="text-lg font-medium text-gray-900 mb-2">
+          検索結果が見つかりませんでした
+        </h3>
+        <p className="text-gray-600 text-sm">
+          {searchQuery ? (
+            <>
+              「<span className="font-medium">{safeSearchQuery}</span>
+              {searchQuery.length > 50 && "…"}
+              」に一致する書店が見つかりませんでした。
+            </>
+          ) : (
+            "条件に一致する書店が見つかりませんでした。"
+          )}
+          <br />
+          検索条件を変更してもう一度お試しください。
+        </p>
+      </div>
+    );
+  }
 
   const totalPages = Math.ceil(bookstores.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
