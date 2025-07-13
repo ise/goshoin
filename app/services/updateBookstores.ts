@@ -5,7 +5,7 @@ import { UpdateLog } from "../../types/supabase";
 import { convertToFullWidthNumber } from "../../lib/utils";
 
 const SPREADSHEET_ID = "1t52cnKT6vDkchIEJ_FmIzAobCIMbgUXBGF_nuQEVaOI";
-const PARTICIPANT_SHEET_ID = "1460657161";
+const PARTICIPANT_SHEET_ID = "745362432";
 const PARTICIPANT_SHEET_RANGE = "A:G";
 const SPECIAL_EDITION_SHEET_ID = "1503676788";
 const SPECIAL_EDITION_SHEET_RANGE = "C:E";
