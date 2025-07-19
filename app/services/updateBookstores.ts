@@ -1,7 +1,7 @@
 "use strict";
 
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
-import { UpdateLog } from "../../types/supabase";
+import { UpdateLog, Bookstore, Database } from "../../types/supabase";
 import { convertToFullWidthNumber } from "../../lib/utils";
 
 const SPREADSHEET_ID = "1t52cnKT6vDkchIEJ_FmIzAobCIMbgUXBGF_nuQEVaOI";
@@ -61,12 +61,44 @@ const PREFECTURE_CODES: { [key: string]: number } = {
   沖縄県: 47,
 };
 
+// 挿入・更新用の型エイリアス
+type BookstoreInsert = Database["public"]["Tables"]["bookstores"]["Insert"];
+
+interface UpdateStats {
+  newCount: number;
+  updateCount: number;
+  deleteCount: number;
+  errorCount: number;
+}
+
 function normalizeAddress(address: string) {
   return convertToFullWidthNumber(address.replace(/−/, "－"));
 }
 
 function trimPrefectureSuffix(prefecture: string) {
   return prefecture.replace(/[都道府県]$/, "");
+}
+
+// 店舗データの比較（差分チェック）
+function hasDataChanged(
+  existing: Bookstore,
+  newData: BookstoreInsert
+): boolean {
+  const fieldsToCompare: (keyof BookstoreInsert)[] = [
+    "number",
+    "prefecture",
+    "prefecture_number",
+    "city",
+    "registered_name",
+    "name",
+    "opening_hour",
+    "establishment_year",
+    "address",
+    "special_edition",
+    "close_info",
+  ];
+
+  return fieldsToCompare.some((field) => existing[field] !== newData[field]);
 }
 
 async function fetchSheetData(sheetId: string, range: string) {
@@ -129,6 +161,22 @@ export async function updateBookstoresService() {
   );
 
   try {
+    // 既存の店舗データを取得
+    const { data: existingBookstores, error: fetchError } = await supabase
+      .from("bookstores")
+      .select("*");
+
+    if (fetchError) {
+      throw new Error(
+        `Failed to fetch existing bookstores: ${fetchError.message}`
+      );
+    }
+
+    const existingBookstoreMap = new Map<number, Bookstore>();
+    existingBookstores?.forEach((bookstore) => {
+      existingBookstoreMap.set(bookstore.number, bookstore);
+    });
+
     // 参加店リストの取得
     const participantRows = await fetchSheetData(
       PARTICIPANT_SHEET_ID,
@@ -140,35 +188,37 @@ export async function updateBookstoresService() {
     if (!isValidParticipant) {
       throw new Error("Invalid participant header: " + compareListParticipant);
     }
-    const bookstores = participantRows.slice(1).map((row) => {
-      const [
-        number,
-        prefecture,
-        city,
-        registered_name,
-        opening_hour,
-        establishment_year,
-        address,
-      ] = row;
-      const closeInfoMatch = registered_name.match(/【(.+?)】/);
-      const name = registered_name.replace(/【(.+?)】/, "");
-      const close_info = closeInfoMatch ? closeInfoMatch[1] : null;
-      const prefecture_number = PREFECTURE_CODES[prefecture] || 0;
+    const bookstores: BookstoreInsert[] = participantRows
+      .slice(1)
+      .map((row) => {
+        const [
+          number,
+          prefecture,
+          city,
+          registered_name,
+          opening_hour,
+          establishment_year,
+          address,
+        ] = row;
+        const closeInfoMatch = registered_name.match(/【(.+?)】/);
+        const name = registered_name.replace(/【(.+?)】/, "");
+        const close_info = closeInfoMatch ? closeInfoMatch[1] : null;
+        const prefecture_number = PREFECTURE_CODES[prefecture] || 0;
 
-      return {
-        number: parseInt(number),
-        prefecture,
-        prefecture_number,
-        city,
-        registered_name,
-        name,
-        opening_hour,
-        establishment_year,
-        address: normalizeAddress(address),
-        special_edition: false,
-        close_info,
-      };
-    });
+        return {
+          number: parseInt(number),
+          prefecture,
+          prefecture_number,
+          city,
+          registered_name,
+          name,
+          opening_hour: opening_hour || null,
+          establishment_year: establishment_year || null,
+          address: normalizeAddress(address),
+          special_edition: false,
+          close_info,
+        };
+      });
 
     // 特装版取扱店リストの取得
     const specialEditionRows = await fetchSheetData(
@@ -188,10 +238,10 @@ export async function updateBookstoresService() {
       prefecture: row[1],
       address: row[2],
     }));
-    // データベースの更新
-    let updatedCount = 0;
-    let errorCount = 0;
-    for (const bookstore of bookstores) {
+
+    // 新しいデータのマップを作成
+    const newBookstoreMap = new Map<number, BookstoreInsert>();
+    bookstores.forEach((bookstore) => {
       const isSpecialEdition = specialEditionBookstores.some(
         (special) =>
           special.name === bookstore.name &&
@@ -199,36 +249,105 @@ export async function updateBookstoresService() {
             trimPrefectureSuffix(bookstore.prefecture)
       );
 
-      const { error } = await supabase.from("bookstores").upsert(
-        {
-          ...bookstore,
-          special_edition: isSpecialEdition,
-        },
-        {
-          onConflict: "number",
-        }
-      );
+      newBookstoreMap.set(bookstore.number, {
+        ...bookstore,
+        special_edition: isSpecialEdition,
+      });
+    });
 
-      if (error) {
-        console.error(`Error updating bookstore ${bookstore.number}:`, error);
-        errorCount++;
-      } else {
-        updatedCount++;
+    // 更新統計
+    const stats: UpdateStats = {
+      newCount: 0,
+      updateCount: 0,
+      deleteCount: 0,
+      errorCount: 0,
+    };
+
+    // 新規・更新処理
+    for (const [number, newBookstore] of newBookstoreMap) {
+      const existingBookstore = existingBookstoreMap.get(number);
+
+      if (!existingBookstore) {
+        // 新規店舗
+        const { error } = await supabase
+          .from("bookstores")
+          .insert(newBookstore);
+        if (error) {
+          console.error(`Error inserting new bookstore ${number}:`, error);
+          stats.errorCount++;
+        } else {
+          stats.newCount++;
+        }
+      } else if (hasDataChanged(existingBookstore, newBookstore)) {
+        // 既存店舗の更新（差分がある場合のみ）
+        const { error } = await supabase
+          .from("bookstores")
+          .update(newBookstore)
+          .eq("number", number);
+        if (error) {
+          console.error(`Error updating bookstore ${number}:`, error);
+          stats.errorCount++;
+        } else {
+          stats.updateCount++;
+        }
+      }
+      // 差分がない場合はスキップ（何もしない）
+    }
+
+    // 削除対象店舗の確認（物理削除は行わない）
+    const deleteCandidates: number[] = [];
+    for (const [number] of existingBookstoreMap) {
+      if (!newBookstoreMap.has(number)) {
+        deleteCandidates.push(number);
+        stats.deleteCount++;
       }
     }
 
-    // 更新ログの作成
-    await createLog(supabase, {
-      status: errorCount === 0 ? "success" : "error",
-      message:
-        errorCount === 0
-          ? `${updatedCount} 件の店舗を更新しました`
-          : `${updatedCount} 件の店舗を更新しました。${errorCount} 件の店舗の更新に失敗しました`,
-      error_details:
-        errorCount > 0 ? `${errorCount} 件の店舗の更新に失敗しました` : null,
-    });
+    // 削除対象店舗をログ出力
+    if (deleteCandidates.length > 0) {
+      console.log(
+        `削除対象店舗 (${deleteCandidates.length}件):`,
+        deleteCandidates.sort((a, b) => a - b)
+      );
+    }
 
-    return [true, updatedCount, errorCount];
+    // 変更がある場合またはエラーがある場合のみログを作成
+    const hasChanges =
+      stats.newCount > 0 || stats.updateCount > 0 || stats.deleteCount > 0;
+    const hasErrors = stats.errorCount > 0;
+
+    if (hasChanges || hasErrors) {
+      // ログメッセージの作成
+      const messageParts: string[] = [];
+      if (stats.newCount > 0) messageParts.push(`新規 ${stats.newCount} 件`);
+      if (stats.updateCount > 0)
+        messageParts.push(`更新 ${stats.updateCount} 件`);
+      if (stats.deleteCount > 0)
+        messageParts.push(`削除対象 ${stats.deleteCount} 件`);
+
+      const message = hasChanges
+        ? `店舗情報を更新しました: ${messageParts.join(", ")}`
+        : "店舗情報に変更はありませんでした";
+
+      // 更新ログの作成
+      await createLog(supabase, {
+        status: stats.errorCount === 0 ? "success" : "error",
+        message:
+          stats.errorCount === 0
+            ? message
+            : `${message}。${stats.errorCount} 件の処理に失敗しました`,
+        error_details:
+          stats.errorCount > 0
+            ? `${stats.errorCount} 件の店舗の処理に失敗しました`
+            : null,
+      });
+    }
+
+    return [
+      stats.errorCount === 0,
+      stats.newCount + stats.updateCount,
+      stats.errorCount,
+    ];
   } catch (error) {
     console.error("Error in update-bookstores:", error);
 
