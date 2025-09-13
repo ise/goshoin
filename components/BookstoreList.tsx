@@ -177,31 +177,7 @@ export function BookstoreList({ searchQuery = "" }: BookstoreListProps) {
     );
   }
 
-  if (bookstores.length === 0) {
-    const safeSearchQuery = searchQuery ? searchQuery.slice(0, 50) : "";
-
-    return (
-      <div className="bg-white rounded-lg shadow-sm p-8 text-center">
-        <div className="text-gray-500 text-lg mb-2">📚</div>
-        <h3 className="text-lg font-medium text-gray-900 mb-2">
-          検索結果が見つかりませんでした
-        </h3>
-        <p className="text-gray-600 text-sm">
-          {searchQuery ? (
-            <>
-              「<span className="font-medium">{safeSearchQuery}</span>
-              {searchQuery.length > 50 && "…"}
-              」に一致する書店が見つかりませんでした。
-            </>
-          ) : (
-            "条件に一致する書店が見つかりませんでした。"
-          )}
-          <br />
-          検索条件を変更してもう一度お試しください。
-        </p>
-      </div>
-    );
-  }
+  // bookstores が空でもフィルタ UI は表示したいので早期 return はしない
 
   const totalPages = Math.ceil(bookstores.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -235,26 +211,49 @@ export function BookstoreList({ searchQuery = "" }: BookstoreListProps) {
           <span>閉店済み店舗</span>
         </label>
       </div>
-      <div className="bg-white rounded-lg shadow-sm">
-        <div className="p-4">
-          {currentBookstores.map((bookstore) => (
-            <BookstoreCard
-              key={bookstore.id}
-              bookstore={bookstore}
-              isWant={bookstore.isWant}
-              isVisited={bookstore.isVisited}
-            />
-          ))}
+      {bookstores.length === 0 ? (
+        <div className="bg-white rounded-lg shadow-sm p-8 text-center">
+          <div className="text-gray-500 text-lg mb-2">📚</div>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            検索結果が見つかりませんでした
+          </h3>
+          <p className="text-gray-600 text-sm">
+            {searchQuery ? (
+              <>
+                「
+                <span className="font-medium">{searchQuery.slice(0, 50)}</span>
+                {searchQuery.length > 50 && "…"}
+                」に一致する書店が見つかりませんでした。
+              </>
+            ) : (
+              "条件に一致する書店が見つかりませんでした。"
+            )}
+            <br />
+            検索条件を変更してもう一度お試しください。
+          </p>
         </div>
+      ) : (
+        <div className="bg-white rounded-lg shadow-sm">
+          <div className="p-4">
+            {currentBookstores.map((bookstore) => (
+              <BookstoreCard
+                key={bookstore.id}
+                bookstore={bookstore}
+                isWant={bookstore.isWant}
+                isVisited={bookstore.isVisited}
+              />
+            ))}
+          </div>
 
-        <div className="px-4 py-3 border-t border-gray-200">
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={handlePageChange}
-          />
+          <div className="px-4 py-3 border-t border-gray-200">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+            />
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
