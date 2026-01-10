@@ -5,7 +5,7 @@ import { UpdateLog, Bookstore, Database } from "../../types/supabase";
 import { convertToFullWidthNumber } from "../../lib/utils";
 
 const SPREADSHEET_ID = "1t52cnKT6vDkchIEJ_FmIzAobCIMbgUXBGF_nuQEVaOI";
-const PARTICIPANT_SHEET_ID = "745362432";
+const PARTICIPANT_SHEET_ID = "83073925";
 const PARTICIPANT_SHEET_RANGE = "A:G";
 const SPECIAL_EDITION_SHEET_ID = "1503676788";
 const SPECIAL_EDITION_SHEET_RANGE = "C:E";
@@ -131,11 +131,11 @@ function compareParticipantHeader(header: string[]) {
   });
   const compareList = [
     [convertedHeader[0], "登録番号"],
-    [convertedHeader[1], "都道府県など"],
+    [convertedHeader[1], "都道府県"],
     [convertedHeader[2], "市町村名"],
     [convertedHeader[3], "登録店名"],
-    [convertedHeader[4], "時間帯"],
-    [convertedHeader[5], "創業年"],
+    [convertedHeader[4], "創業年"],
+    [convertedHeader[5], "時間帯"],
     [convertedHeader[6], "住所"],
   ];
   return [compareList.every(([a, b]) => a === b), compareList];
@@ -196,8 +196,8 @@ export async function updateBookstoresService() {
           prefecture,
           city,
           registered_name,
-          opening_hour,
           establishment_year,
+          opening_hour,
           address,
         ] = row;
         const closeInfoMatch = registered_name.match(/【(.+?)】/);

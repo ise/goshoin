@@ -39,6 +39,6 @@ https://cloud.trigger.dev/orgs/ise-21ee/projects/v3/goshoin-iFiU/test
 公開されているスプレッドシートは ↓ のようにアクセスするだけで CSV データがダウンロードできるらしい（cursor まじプログラミングオタク）
 
 - 参加順店舗リスト
-  - https://docs.google.com/spreadsheets/d/1t52cnKT6vDkchIEJ_FmIzAobCIMbgUXBGF_nuQEVaOI/gviz/tq?tqx=out:csv&gid=745362432&range=A:G
+  - https://docs.google.com/spreadsheets/d/1t52cnKT6vDkchIEJ_FmIzAobCIMbgUXBGF_nuQEVaOI/gviz/tq?tqx=out:csv&gid=83073925&range=A:G
 - 特装版取扱店舗リスト
   - https://docs.google.com/spreadsheets/d/1t52cnKT6vDkchIEJ_FmIzAobCIMbgUXBGF_nuQEVaOI/gviz/tq?tqx=out:csv&gid=1503676788&range=C:E
