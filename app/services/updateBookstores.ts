@@ -6,9 +6,9 @@ import { convertToFullWidthNumber } from "../../lib/utils";
 
 const SPREADSHEET_ID = "1t52cnKT6vDkchIEJ_FmIzAobCIMbgUXBGF_nuQEVaOI";
 const PARTICIPANT_SHEET_ID = "83073925";
-const PARTICIPANT_SHEET_RANGE = "A:G";
+const PARTICIPANT_SHEET_RANGE = "A:O"; // 列追加に備えて多めに取得
 const SPECIAL_EDITION_SHEET_ID = "1503676788";
-const SPECIAL_EDITION_SHEET_RANGE = "C:E";
+const SPECIAL_EDITION_SHEET_RANGE = "C:G"; // 列追加に備えて多めに取得
 
 // 都道府県コードのマッピング
 const PREFECTURE_CODES: { [key: string]: number } = {
@@ -82,7 +82,7 @@ function trimPrefectureSuffix(prefecture: string) {
 // 店舗データの比較（差分チェック）
 function hasDataChanged(
   existing: Bookstore,
-  newData: BookstoreInsert
+  newData: BookstoreInsert,
 ): boolean {
   const fieldsToCompare: (keyof BookstoreInsert)[] = [
     "number",
@@ -115,7 +115,7 @@ async function fetchSheetData(sheetId: string, range: string) {
 
 async function createLog(
   supabase: SupabaseClient,
-  log: Omit<UpdateLog, "id" | "created_at">
+  log: Omit<UpdateLog, "id" | "created_at">,
 ) {
   const { error } = await supabase.from("update_logs").insert(log);
 
@@ -124,40 +124,80 @@ async function createLog(
   }
 }
 
-function compareParticipantHeader(header: string[]) {
-  const convertedHeader = header.map((h, i) => {
-    if (i === 0) h = h.replace(/^御書印参加店リスト（.+） /, "");
-    return h.trim();
-  });
-  const compareList = [
-    [convertedHeader[0], "登録番号"],
-    [convertedHeader[1], "都道府県"],
-    [convertedHeader[2], "市町村名"],
-    [convertedHeader[3], "登録店名"],
-    [convertedHeader[4], "創業年"],
-    [convertedHeader[5], "時間帯"],
-    [convertedHeader[6], "住所"],
-  ];
-  return [compareList.every(([a, b]) => a === b), compareList];
+const PARTICIPANT_EXPECTED_COLUMNS = [
+  "登録番号",
+  "都道府県",
+  "市町村名",
+  "登録店名",
+  "創業年",
+  "時間帯",
+  "住所",
+] as const;
+
+/**
+ * ヘッダ行から期待する列名のインデックスを取得する。
+ * 列の追加・並び替え・重複があっても、各列名の「最初の出現」を使う。
+ */
+function parseParticipantHeader(header: string[]): {
+  valid: boolean;
+  indices: number[] | null;
+  missing: string[];
+} {
+  const normalized = header.map((h) => h.trim());
+  const indices: number[] = [];
+  const missing: string[] = [];
+
+  for (const name of PARTICIPANT_EXPECTED_COLUMNS) {
+    const idx = normalized.indexOf(name);
+    if (idx === -1) {
+      missing.push(name);
+    } else {
+      indices.push(idx);
+    }
+  }
+
+  return {
+    valid: missing.length === 0,
+    indices: missing.length === 0 ? indices : null,
+    missing,
+  };
 }
 
-function compareSpecialEditionHeader(header: string[]) {
-  const convertedHeader = header.map((h, i) => {
-    if (i === 0) h = h.replace(/^特装版取扱店リスト（.+） /, "");
-    return h.trim();
-  });
-  const compareList = [
-    [convertedHeader[0], "書店名"],
-    [convertedHeader[1], "都道府県"],
-    [convertedHeader[2], "住所"],
-  ];
-  return [compareList.every(([a, b]) => a === b), compareList];
+const SPECIAL_EDITION_EXPECTED_COLUMNS = [
+  "書店名",
+  "都道府県",
+  "住所",
+] as const;
+
+function parseSpecialEditionHeader(header: string[]): {
+  valid: boolean;
+  indices: number[] | null;
+  missing: string[];
+} {
+  const normalized = header.map((h) => h.trim());
+  const indices: number[] = [];
+  const missing: string[] = [];
+
+  for (const name of SPECIAL_EDITION_EXPECTED_COLUMNS) {
+    const idx = normalized.indexOf(name);
+    if (idx === -1) {
+      missing.push(name);
+    } else {
+      indices.push(idx);
+    }
+  }
+
+  return {
+    valid: missing.length === 0,
+    indices: missing.length === 0 ? indices : null,
+    missing,
+  };
 }
 
 export async function updateBookstoresService() {
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
   );
 
   try {
@@ -168,7 +208,7 @@ export async function updateBookstoresService() {
 
     if (fetchError) {
       throw new Error(
-        `Failed to fetch existing bookstores: ${fetchError.message}`
+        `Failed to fetch existing bookstores: ${fetchError.message}`,
       );
     }
 
@@ -180,26 +220,26 @@ export async function updateBookstoresService() {
     // 参加店リストの取得
     const participantRows = await fetchSheetData(
       PARTICIPANT_SHEET_ID,
-      PARTICIPANT_SHEET_RANGE
+      PARTICIPANT_SHEET_RANGE,
     );
-    // ヘッダをチェック
-    const [isValidParticipant, compareListParticipant] =
-      compareParticipantHeader(participantRows[0]);
-    if (!isValidParticipant) {
-      throw new Error("Invalid participant header: " + compareListParticipant);
+    // ヘッダをチェック（期待する列名が含まれていればOK、インデックスで取得）
+    const participantHeader = parseParticipantHeader(participantRows[0]);
+    if (!participantHeader.valid || !participantHeader.indices) {
+      throw new Error(
+        `Invalid participant header: missing columns: ${participantHeader.missing.join(", ")}`,
+      );
     }
+    const pi = participantHeader.indices;
     const bookstores: BookstoreInsert[] = participantRows
       .slice(1)
       .map((row) => {
-        const [
-          number,
-          prefecture,
-          city,
-          registered_name,
-          establishment_year,
-          opening_hour,
-          address,
-        ] = row;
+        const number = row[pi[0]];
+        const prefecture = row[pi[1]];
+        const city = row[pi[2]];
+        const registered_name = row[pi[3]];
+        const establishment_year = row[pi[4]];
+        const opening_hour = row[pi[5]];
+        const address = row[pi[6]];
         const closeInfoMatch = registered_name.match(/【(.+?)】/);
         const name = registered_name.replace(/【(.+?)】/, "");
         const close_info = closeInfoMatch ? closeInfoMatch[1] : null;
@@ -223,20 +263,22 @@ export async function updateBookstoresService() {
     // 特装版取扱店リストの取得
     const specialEditionRows = await fetchSheetData(
       SPECIAL_EDITION_SHEET_ID,
-      SPECIAL_EDITION_SHEET_RANGE
+      SPECIAL_EDITION_SHEET_RANGE,
     );
-    // ヘッダをチェック
-    const [isValidSpecialEdition, compareListSpecialEdition] =
-      compareSpecialEditionHeader(specialEditionRows[0]);
-    if (!isValidSpecialEdition) {
+    // ヘッダをチェック（期待する列名が含まれていればOK）
+    const specialEditionHeader = parseSpecialEditionHeader(
+      specialEditionRows[0],
+    );
+    if (!specialEditionHeader.valid || !specialEditionHeader.indices) {
       throw new Error(
-        "Invalid special edition header: " + compareListSpecialEdition
+        `Invalid special edition header: missing columns: ${specialEditionHeader.missing.join(", ")}`,
       );
     }
+    const si = specialEditionHeader.indices;
     const specialEditionBookstores = specialEditionRows.slice(1).map((row) => ({
-      name: row[0],
-      prefecture: row[1],
-      address: row[2],
+      name: row[si[0]],
+      prefecture: row[si[1]],
+      address: row[si[2]],
     }));
 
     // 新しいデータのマップを作成
@@ -246,7 +288,7 @@ export async function updateBookstoresService() {
         (special) =>
           special.name === bookstore.name &&
           trimPrefectureSuffix(special.prefecture) ===
-            trimPrefectureSuffix(bookstore.prefecture)
+            trimPrefectureSuffix(bookstore.prefecture),
       );
 
       newBookstoreMap.set(bookstore.number, {
@@ -307,7 +349,7 @@ export async function updateBookstoresService() {
     if (deleteCandidates.length > 0) {
       console.log(
         `削除対象店舗 (${deleteCandidates.length}件):`,
-        deleteCandidates.sort((a, b) => a - b)
+        deleteCandidates.sort((a, b) => a - b),
       );
     }
 
