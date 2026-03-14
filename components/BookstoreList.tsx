@@ -90,24 +90,31 @@ export function BookstoreList({ searchQuery = "" }: BookstoreListProps) {
           );
         }
 
-        const { data: bookstoreData, error: bookstoreError } = await query;
+        const { data: rawBookstoreData, error: bookstoreError } = await query;
 
         if (bookstoreError) throw bookstoreError;
 
-        if (!bookstoreData) {
+        if (!rawBookstoreData) {
           setBookstores([]);
           return;
         }
 
+        // 型アサーション: 条件付きクエリの再代入で型推論が never になる場合があるため
+        // (Renovate の lock 更新後の @supabase/supabase-js 等で発生)
+        const bookstoreData = rawBookstoreData as Bookstore[];
         let finalBookstores: BookstoreWithMarks[] = bookstoreData;
 
         if (userId && bookstoreData.length > 0) {
           const bookstoreIds = bookstoreData.map((b) => b.id);
 
-          const { data: marksData, error: rpcError } = await supabase.rpc(
-            "get_bookstore_marks",
-            { p_bookstore_ids: bookstoreIds }
-          );
+          // get_bookstore_marks の引数が undefined と推論される場合がある（lock 更新後の supabase-js 等）ため型アサーション
+          type RpcWithArgs = (
+            fn: string,
+            args: { p_bookstore_ids: string[] }
+          ) => ReturnType<typeof supabase.rpc>;
+          const { data: marksData, error: rpcError } = await (
+            supabase.rpc as unknown as RpcWithArgs
+          )("get_bookstore_marks", { p_bookstore_ids: bookstoreIds });
 
           if (rpcError) {
             console.error("Error fetching bookstore marks via RPC:", rpcError);
@@ -157,6 +164,7 @@ export function BookstoreList({ searchQuery = "" }: BookstoreListProps) {
     showSpecialEdition,
     userId,
     supabaseAccessToken,
+    isQueryTooLong,
   ]);
 
   if (loading) return <div className="text-center">読み込み中...</div>;

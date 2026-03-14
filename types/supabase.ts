@@ -35,5 +35,15 @@ export type Database = {
         Update: Partial<Omit<UpdateLog, 'id' | 'created_at'>>
       }
     }
+    Functions: {
+      get_bookstore_marks: {
+        Args: { p_bookstore_ids: string[] }
+        Returns: {
+          bookstore_id: string
+          is_want: boolean
+          is_visited: boolean
+        }[]
+      }
+    }
   }
 } 
