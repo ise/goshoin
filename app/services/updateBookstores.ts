@@ -71,12 +71,27 @@ interface UpdateStats {
   errorCount: number;
 }
 
-function normalizeAddress(address: string) {
-  return convertToFullWidthNumber(address.replace(/−/, "－"));
+function normalizeAddress(address?: string) {
+  return convertToFullWidthNumber((address ?? "").replace(/−/, "－"));
 }
 
-function trimPrefectureSuffix(prefecture: string) {
-  return prefecture.replace(/[都道府県]$/, "");
+function trimPrefectureSuffix(prefecture?: string) {
+  return (prefecture ?? "").replace(/[都道府県]$/, "");
+}
+
+function parseBookstoreNumber(raw?: string): number | null {
+  const normalized = (raw ?? "")
+    .trim()
+    .replace(/[０-９]/g, (char) =>
+      String.fromCharCode(char.charCodeAt(0) - 0xfee0),
+    );
+
+  if (!/^\d+$/.test(normalized)) {
+    return null;
+  }
+
+  const parsed = Number.parseInt(normalized, 10);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 // 店舗データの比較（差分チェック）
@@ -108,9 +123,55 @@ async function fetchSheetData(sheetId: string, range: string) {
     throw new Error(`Failed to fetch sheet data: ${response.statusText}`);
   }
   const csv = await response.text();
-  return csv
-    .split("\n")
-    .map((row) => row.split(",").map((cell) => cell.replace(/^"|"$/g, "")));
+  return parseCsv(csv);
+}
+
+function parseCsv(csv: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let cell = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < csv.length; i++) {
+    const char = csv[i];
+    const next = csv[i + 1];
+
+    if (char === '"') {
+      if (inQuotes && next === '"') {
+        cell += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+
+    if (char === "," && !inQuotes) {
+      row.push(cell);
+      cell = "";
+      continue;
+    }
+
+    if ((char === "\n" || char === "\r") && !inQuotes) {
+      if (char === "\r" && next === "\n") {
+        i++;
+      }
+      row.push(cell);
+      rows.push(row);
+      row = [];
+      cell = "";
+      continue;
+    }
+
+    cell += char;
+  }
+
+  row.push(cell);
+  if (row.length > 1 || row[0] !== "") {
+    rows.push(row);
+  }
+
+  return rows;
 }
 
 async function createLog(
@@ -230,23 +291,32 @@ export async function updateBookstoresService() {
       );
     }
     const pi = participantHeader.indices;
+    let invalidNumberRowCount = 0;
     const bookstores: BookstoreInsert[] = participantRows
       .slice(1)
-      .map((row) => {
-        const number = row[pi[0]];
-        const prefecture = row[pi[1]];
-        const city = row[pi[2]];
-        const registered_name = row[pi[3]];
-        const establishment_year = row[pi[4]];
-        const opening_hour = row[pi[5]];
-        const address = row[pi[6]];
+      .map((row, index) => {
+        const number = row[pi[0]] ?? "";
+        const parsedNumber = parseBookstoreNumber(number);
+        if (parsedNumber === null) {
+          invalidNumberRowCount++;
+          console.warn(
+            `Skipping participant row with invalid 登録番号 (row ${index + 2}): "${number}"`,
+          );
+          return null;
+        }
+        const prefecture = row[pi[1]] ?? "";
+        const city = row[pi[2]] ?? "";
+        const registered_name = row[pi[3]] ?? "";
+        const establishment_year = row[pi[4]] ?? "";
+        const opening_hour = row[pi[5]] ?? "";
+        const address = row[pi[6]] ?? "";
         const closeInfoMatch = registered_name.match(/【(.+?)】/);
         const name = registered_name.replace(/【(.+?)】/, "");
         const close_info = closeInfoMatch ? closeInfoMatch[1] : null;
         const prefecture_number = PREFECTURE_CODES[prefecture] || 0;
 
         return {
-          number: parseInt(number),
+          number: parsedNumber,
           prefecture,
           prefecture_number,
           city,
@@ -258,7 +328,8 @@ export async function updateBookstoresService() {
           special_edition: false,
           close_info,
         };
-      });
+      })
+      .filter((bookstore): bookstore is BookstoreInsert => bookstore !== null);
 
     // 特装版取扱店リストの取得
     const specialEditionRows = await fetchSheetData(
@@ -276,9 +347,9 @@ export async function updateBookstoresService() {
     }
     const si = specialEditionHeader.indices;
     const specialEditionBookstores = specialEditionRows.slice(1).map((row) => ({
-      name: row[si[0]],
-      prefecture: row[si[1]],
-      address: row[si[2]],
+      name: row[si[0]] ?? "",
+      prefecture: row[si[1]] ?? "",
+      address: row[si[2]] ?? "",
     }));
 
     // 新しいデータのマップを作成
@@ -302,7 +373,7 @@ export async function updateBookstoresService() {
       newCount: 0,
       updateCount: 0,
       deleteCount: 0,
-      errorCount: 0,
+      errorCount: invalidNumberRowCount,
     };
 
     // 新規・更新処理
