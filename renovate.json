@@ -2,10 +2,12 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:recommended",
+    "helpers:pinGitHubActionDigestsToSemver",
     ":automergeMinor",
-    ":automergePatch",
-    ":automergeDigest"
+    ":automergePatch"
   ],
+  "minimumReleaseAge": "7 days",
+  "minimumReleaseAgeBehaviour": "timestamp-required",
   "schedule": ["before 6am on monday"],
   "timezone": "Asia/Tokyo",
   "labels": ["dependencies"],
@@ -38,29 +40,21 @@
     },
     {
       "description": "Tailwind関連をグループ化",
-      "matchPackageNames": [
-        "tailwindcss",
-        "autoprefixer",
-        "postcss",
-        "tailwind-merge",
-        "class-variance-authority",
-        "clsx"
-      ],
+      "matchPackageNames": ["tailwindcss", "autoprefixer", "postcss"],
       "groupName": "Tailwind CSS"
     },
     {
       "description": "Trigger.dev関連をグループ化",
-      "matchPackageNames": ["@trigger.dev/sdk", "@trigger.dev/build"],
+      "matchPackageNames": [
+        "trigger.dev",
+        "@trigger.dev/sdk",
+        "@trigger.dev/build"
+      ],
       "groupName": "Trigger.dev"
     },
     {
       "description": "TypeScript関連をグループ化",
-      "matchPackageNames": [
-        "typescript",
-        "@types/node",
-        "@types/jsonwebtoken",
-        "@types/dotenv"
-      ],
+      "matchPackageNames": ["typescript", "@types/node", "@types/jsonwebtoken"],
       "groupName": "TypeScript"
     },
     {
@@ -76,13 +70,18 @@
       "reviewers": ["@ise"]
     },
     {
-      "description": "セキュリティアップデートは即座に自動マージ",
+      "description": "npm patch は cooldown 後に自動マージ",
       "matchDatasources": ["npm"],
       "matchUpdateTypes": ["patch"],
-      "matchPackageNames": ["*"],
       "automerge": true,
       "automergeType": "pr",
       "platformAutomerge": true
+    },
+    {
+      "description": "GitHub Actions の digest 更新は自動マージしない（タグ付け替え対策）",
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["digest", "pinDigest"],
+      "automerge": false
     }
   ],
   "vulnerabilityAlerts": {

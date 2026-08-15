@@ -1,0 +1,9 @@
+# Default reviewer
+* @ise
+
+# Supply-chain sensitive paths (explicit, even with the catch-all above)
+package.json @ise
+package-lock.json @ise
+.npmrc @ise
+renovate.json @ise
+.github/ @ise
