@@ -2,7 +2,9 @@ import { defineConfig } from "@trigger.dev/sdk/v3";
 
 export default defineConfig({
   project: "proj_qmryethkfylqgamfxbdm",
-  runtime: "node",
+  // @supabase/realtime-js は Node 22+ の global WebSocket が必要。
+  // runtime: "node" は 21.7.3 のため createClient 時点で落ちる。
+  runtime: "node-22",
   logLevel: "log",
   // The max compute seconds a task is allowed to run. If the task run exceeds this duration, it will be stopped.
   // You can override this on an individual task.
