@@ -2,7 +2,7 @@
   "name": "goshoin",
   "version": "0.1.0",
   "private": true,
-  "packageManager": "npm@11.19.0",
+  "packageManager": "npm@11.19.1",
   "engines": {
     "node": ">=20",
     "npm": ">=11.10.0"
