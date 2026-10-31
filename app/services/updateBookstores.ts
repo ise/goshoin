@@ -4,11 +4,9 @@ import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { UpdateLog, Bookstore, Database } from "../../types/supabase";
 import { convertToFullWidthNumber } from "../../lib/utils";
 
-const SPREADSHEET_ID = "1t52cnKT6vDkchIEJ_FmIzAobCIMbgUXBGF_nuQEVaOI";
-const PARTICIPANT_SHEET_ID = "83073925";
+const SPREADSHEET_ID = "12--MipM2Q04-YCcJ-0Xc-p3AYvCtpZdN";
+const PARTICIPANT_SHEET_ID = "169943299";
 const PARTICIPANT_SHEET_RANGE = "A:O"; // 列追加に備えて多めに取得
-const SPECIAL_EDITION_SHEET_ID = "1503676788";
-const SPECIAL_EDITION_SHEET_RANGE = "C:G"; // 列追加に備えて多めに取得
 
 // 都道府県コードのマッピング
 const PREFECTURE_CODES: { [key: string]: number } = {
@@ -73,10 +71,6 @@ interface UpdateStats {
 
 function normalizeAddress(address?: string) {
   return convertToFullWidthNumber((address ?? "").replace(/−/, "－"));
-}
-
-function trimPrefectureSuffix(prefecture?: string) {
-  return (prefecture ?? "").replace(/[都道府県]$/, "");
 }
 
 function parseBookstoreNumber(raw?: string): number | null {
@@ -185,66 +179,63 @@ async function createLog(
   }
 }
 
-const PARTICIPANT_EXPECTED_COLUMNS = [
-  "登録番号",
-  "都道府県",
-  "市町村名",
-  "登録店名",
-  "創業年",
-  "時間帯",
-  "住所",
-] as const;
+type ParticipantColumnKey =
+  | "number"
+  | "prefecture"
+  | "city"
+  | "registered_name"
+  | "establishment_year"
+  | "opening_hour"
+  | "address";
+
+type ParticipantColumnIndices = Record<ParticipantColumnKey, number>;
 
 /**
- * ヘッダ行から期待する列名のインデックスを取得する。
- * 列の追加・並び替え・重複があっても、各列名の「最初の出現」を使う。
+ * 新シートの列名（店舗名称 / 創業 / 受付時間帯）と旧シートの別名を両方許容する。
+ * 「受付時間帯」は注釈付きヘッダなので、先頭行だけ比較する。
+ */
+const PARTICIPANT_COLUMN_ALIASES: Record<ParticipantColumnKey, string[]> = {
+  number: ["登録番号"],
+  registered_name: ["店舗名称", "登録店名"],
+  establishment_year: ["創業", "創業年"],
+  opening_hour: ["受付時間帯", "時間帯"],
+  prefecture: ["都道府県"],
+  city: ["市町村名"],
+  address: ["住所"],
+};
+
+function normalizeHeaderCell(header: string): string {
+  return header.trim().split(/\r?\n/)[0]?.trim() ?? "";
+}
+
+function findHeaderIndex(normalizedHeader: string[], aliases: string[]): number {
+  return normalizedHeader.findIndex((cell) =>
+    aliases.some((alias) => cell === alias || cell.startsWith(alias)),
+  );
+}
+
+/**
+ * ヘッダ行から期待する列のインデックスを取得する。
+ * 列の追加・並び替え・別名があっても、各フィールドの「最初の一致」を使う。
  */
 function parseParticipantHeader(header: string[]): {
   valid: boolean;
-  indices: number[] | null;
+  indices: ParticipantColumnIndices | null;
   missing: string[];
 } {
-  const normalized = header.map((h) => h.trim());
-  const indices: number[] = [];
+  const normalized = header.map(normalizeHeaderCell);
+  const indices = {} as ParticipantColumnIndices;
   const missing: string[] = [];
 
-  for (const name of PARTICIPANT_EXPECTED_COLUMNS) {
-    const idx = normalized.indexOf(name);
+  for (const [key, aliases] of Object.entries(PARTICIPANT_COLUMN_ALIASES) as [
+    ParticipantColumnKey,
+    string[],
+  ][]) {
+    const idx = findHeaderIndex(normalized, aliases);
     if (idx === -1) {
-      missing.push(name);
+      missing.push(aliases[0]);
     } else {
-      indices.push(idx);
-    }
-  }
-
-  return {
-    valid: missing.length === 0,
-    indices: missing.length === 0 ? indices : null,
-    missing,
-  };
-}
-
-const SPECIAL_EDITION_EXPECTED_COLUMNS = [
-  "書店名",
-  "都道府県",
-  "住所",
-] as const;
-
-function parseSpecialEditionHeader(header: string[]): {
-  valid: boolean;
-  indices: number[] | null;
-  missing: string[];
-} {
-  const normalized = header.map((h) => h.trim());
-  const indices: number[] = [];
-  const missing: string[] = [];
-
-  for (const name of SPECIAL_EDITION_EXPECTED_COLUMNS) {
-    const idx = normalized.indexOf(name);
-    if (idx === -1) {
-      missing.push(name);
-    } else {
-      indices.push(idx);
+      indices[key] = idx;
     }
   }
 
@@ -295,7 +286,7 @@ export async function updateBookstoresService() {
     const bookstores: BookstoreInsert[] = participantRows
       .slice(1)
       .map((row, index) => {
-        const number = row[pi[0]] ?? "";
+        const number = row[pi.number] ?? "";
         const parsedNumber = parseBookstoreNumber(number);
         if (parsedNumber === null) {
           invalidNumberRowCount++;
@@ -304,16 +295,20 @@ export async function updateBookstoresService() {
           );
           return null;
         }
-        const prefecture = row[pi[1]] ?? "";
-        const city = row[pi[2]] ?? "";
-        const registered_name = row[pi[3]] ?? "";
-        const establishment_year = row[pi[4]] ?? "";
-        const opening_hour = row[pi[5]] ?? "";
-        const address = row[pi[6]] ?? "";
+        const prefecture = row[pi.prefecture] ?? "";
+        const city = row[pi.city] ?? "";
+        const registered_name = row[pi.registered_name] ?? "";
+        const establishment_year = row[pi.establishment_year] ?? "";
+        const opening_hour = row[pi.opening_hour] ?? "";
+        const address = row[pi.address] ?? "";
         const closeInfoMatch = registered_name.match(/【(.+?)】/);
         const name = registered_name.replace(/【(.+?)】/, "");
         const close_info = closeInfoMatch ? closeInfoMatch[1] : null;
         const prefecture_number = PREFECTURE_CODES[prefecture] || 0;
+
+        // 特装版シートは公開停止中のため更新しない。既存フラグは維持する。
+        const special_edition =
+          existingBookstoreMap.get(parsedNumber)?.special_edition ?? false;
 
         return {
           number: parsedNumber,
@@ -325,47 +320,16 @@ export async function updateBookstoresService() {
           opening_hour: opening_hour || null,
           establishment_year: establishment_year || null,
           address: normalizeAddress(address),
-          special_edition: false,
+          special_edition,
           close_info,
         };
       })
       .filter((bookstore): bookstore is BookstoreInsert => bookstore !== null);
 
-    // 特装版取扱店リストの取得
-    const specialEditionRows = await fetchSheetData(
-      SPECIAL_EDITION_SHEET_ID,
-      SPECIAL_EDITION_SHEET_RANGE,
-    );
-    // ヘッダをチェック（期待する列名が含まれていればOK）
-    const specialEditionHeader = parseSpecialEditionHeader(
-      specialEditionRows[0],
-    );
-    if (!specialEditionHeader.valid || !specialEditionHeader.indices) {
-      throw new Error(
-        `Invalid special edition header: missing columns: ${specialEditionHeader.missing.join(", ")}`,
-      );
-    }
-    const si = specialEditionHeader.indices;
-    const specialEditionBookstores = specialEditionRows.slice(1).map((row) => ({
-      name: row[si[0]] ?? "",
-      prefecture: row[si[1]] ?? "",
-      address: row[si[2]] ?? "",
-    }));
-
     // 新しいデータのマップを作成
     const newBookstoreMap = new Map<number, BookstoreInsert>();
     bookstores.forEach((bookstore) => {
-      const isSpecialEdition = specialEditionBookstores.some(
-        (special) =>
-          special.name === bookstore.name &&
-          trimPrefectureSuffix(special.prefecture) ===
-            trimPrefectureSuffix(bookstore.prefecture),
-      );
-
-      newBookstoreMap.set(bookstore.number, {
-        ...bookstore,
-        special_edition: isSpecialEdition,
-      });
+      newBookstoreMap.set(bookstore.number, bookstore);
     });
 
     // 更新統計
